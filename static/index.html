@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portfolio API Test</title>
+</head>
+<body>
+    <h2>Portfolio Website Generation</h2>
+    <form id="resumeForm" enctype="multipart/form-data">
+    <input type="file" name="resume" id="resumeInput" required>
+    <button type="submit">Upload Resume</button>
+</form>
+
+    <pre id="portfolioResult"></pre>
+
+    <h2>Translate Content</h2>
+<textarea id="content" placeholder="Enter content here" rows="2" cols="50"></textarea><br>
+<input type="text" id="target_lang" placeholder="Target Language Code (e.g., hi, es, fr)"><br>
+<button onclick="translateText()">Translate</button>
+<pre id="result"></pre>
+
+
+    <h2>Multi-Currency Price Converter</h2>
+
+<label>Price:</label><br>
+<input type="number" id="price" placeholder="Enter price" step="0.01"><br><br>
+
+<label>From Country Code (currency):</label><br>
+<input type="text" id="from_country" placeholder="e.g., IN" maxlength="2"><br><br>
+
+<label>To Country Code (currency):</label><br>
+<input type="text" id="to_country" placeholder="e.g., US" maxlength="2"><br><br>
+
+<button onclick="convertPrice()">Convert Price</button>
+
+<pre id="conversionResult"></pre>
+
+    <script>
+    // Portfolio Generator
+   document.getElementById('resumeForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('resume', document.getElementById('resumeInput').files[0]); // <-- FIXED LINE
+    const response = await fetch('/api/portfolio/generate', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await response.json();
+    document.getElementById('portfolioResult').textContent = JSON.stringify(data, null, 2);
+};
+
+
+ async function translateText() {
+    console.log("DEBUG: Translate button clicked");
+    const content = document.getElementById('content').value;
+    const target_lang = document.getElementById('target_lang').value;
+
+    try {
+        const response = await fetch("http://127.0.0.1:5000/api/translate/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content, target_lang })
+        });
+
+        console.log("DEBUG: raw response", response);
+
+        const data = await response.json();
+        console.log("DEBUG: parsed response", data);
+
+        document.getElementById("result").textContent =
+            data.translated_content || data.error || "No response";
+    } catch (err) {
+        console.error("Fetch error:", err);
+        document.getElementById("result").textContent = "Error: " + err;
+    }
+}
+
+  async function convertPrice() {
+    const price = document.getElementById('price').value.trim();
+    const from_country = document.getElementById('from_country').value.trim().toUpperCase();
+    const to_country = document.getElementById('to_country').value.trim().toUpperCase();
+
+    if (!price || !from_country || !to_country) {
+        alert("Please fill in all fields.");
+        return;
+    }
+
+    const url = `/api/currency?price=${encodeURIComponent(price)}&from_country=${encodeURIComponent(from_country)}&to_country=${encodeURIComponent(to_country)}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            document.getElementById('conversionResult').textContent = "Error fetching conversion.";
+            return;
+        }
+        const data = await response.json();
+        document.getElementById('conversionResult').textContent =
+            `Input: ${data.input_price} ${data.input_currency}\n` +
+            `Converted: ${data.converted_price} ${data.converted_currency}`;
+    } catch (error) {
+        document.getElementById('conversionResult').textContent = "Network or server error.";
+    }
+}
+    </script>
+</body>
+</html>
